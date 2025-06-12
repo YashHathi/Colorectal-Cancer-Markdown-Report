@@ -1,0 +1,99 @@
+---
+title: "Midterm Yash Hathi"
+output: bookdown::html_document2
+date: "2025-03-08"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(number_sections = FALSE)
+```
+
+# PREAMBLE defines variables {-}
+```{r abc}
+Dataset<-read.csv(file="C:\\Users\\yashi\\Downloads\\colorectal_fixed.csv")
+DataName<-"colorectal_cancer"
+x1name<-"Cancer_Stage"
+x2name<-"Physical_Activity"
+x3name <- "Alcohol_Consumption"
+x4name <- "Smoking_History"
+x5name <- "Urban_or_Rural"
+x6name <- "Age"
+y1name<-"Tumor_Size_mm"
+```
+
+
+```{r}
+## Getting data from variable names (this should only depend upon preamble)
+x1<-as.factor(Dataset[,x1name])
+x2<-as.factor(Dataset[,x2name])
+x3<- as.factor(Dataset[,x3name])
+x4 <-as.factor(Dataset[,x4name])
+x5 <-as.factor(Dataset[,x5name])
+x6 <- Dataset[,x6name]
+y1<-Dataset[,y1name]
+```
+
+# Part 1: ANOVA Test {-}
+The first thing we are going to do is make a factorial ANOVA model to test if `r x4name`, `r x2name`, or a interaction of the two have a significant effect on `r y1name`. We define our null hypothesis as followed:
+
+H0: `r x4name` has no significant effect on `r y1name`
+
+H0: `r x2name` has no significant effect on `r y1name`
+
+H0: There is no significant interaction between `r x4name` and `r x2name` that affects `r y1name`.
+
+For the purposes of this test we will define our significance level as 0.05.
+
+This is our test and its results:
+```{r}
+anova_y1 <- aov(y1 ~ x4 * x2, data = Dataset)
+summary(anova_y1)
+```
+We visualize the results as followed:
+```{r tmpSecLabl,fig.cap="Left: Boxplot comparing Tumor Size and Smoking History, Right: Scatterplot comparing Tumor Size and Age"}
+par(mfrow=c(1,2))
+boxplot(split(y1,x4), col="green", xlab = "Smoking History", ylab="Tumor Size(mm)", 
+main="Smoking History vs Tumor Size")
+boxplot(split(y1,x2), col = "red", xlab = "Physical Activity", ylab="Tumor Size(mm)",
+main="Physical Activity vs Tumor Size")
+```
+
+I have used box plots to visualize both variables. We see that for `r x4name` that skew the results to the right. We also see that the difference in the medians of `r y1name` between our three groups is slightly different. These two factors could indicate there is a significant difference in the means between both groups.  Meanwhile for `r x2name` the box plots appears to have medians that look similar to each other, however once again we see that there outliers skewing the data. This could cause a statistical significant difference in means between the two groups. This is backed up by our ANOVA test. Based on P values from the ANOVA test, we reject the null hypothesis for `r x4name` and `r x2name`, since they are less than 0.05. We have evidence to suggest that on their own, both variables have a significant effect on `r y1name`. However, when looking at the interaction between both variables, we fail to reject the null hypothesis. The p-value is greater than 0.05, meaning there is not a significant effect on `r y1name` from an interaction of `r x4name` and `r x2name`.
+
+# Part 2: Predictive Model {-}
+Next we will create a predictive model were we will try to predict `r y1name`
+using demographic data such as `r x1name`, `r x6name`. To do this we will create a multiple linear regression model. But first lets create two scatter plots, one for each of our variables to visualize them separately. 
+
+```{r tmpSecLabl2,fig.cap="Left: Boxplot comparing Tumor Size and Cancer Stage, Right: Scatterplot comparing Tumor Size and Age"}
+par(mfrow=c(1,2))
+plot(x1,y1,pch=16, col="blue", names=c("Local", "Meta", "Regional"), xlab="Cancer Stage", ylab="Tumor Size(mm)", main="Tumor Size vs Cancer Stage")
+plot(x6,y1,pch=13, xlab="Age", ylab="Tumor Size(mm)", main="Tumor Size vs Age", col="orange")
+```
+
+Some interpretation we can get from our first plot is that the median of regional `r y1name` is bigger than the metastatic or local `r x1name`. This is contrary to science as a metastatic `r x1name` should have the largest `r y1name`, not regional. But what we do see are some outliers are causing `r y1name`data to skew left for all three. So there is a possibility they have a larger affect for the regional group. For our second plot, we see that `r x6name` and `r y1name` are strongly correlated, as it is almost a perfect linear line. These two metrics will help us build our multiple linear regression to predict `r y1name`. 
+Now we can build our multiple linear regression model as follows:
+```{r}
+model <- lm(y1 ~x1+x6, data = Dataset)
+summary(model)
+```
+
+If we look at our multiple r^2 value, we see value of around 0.98. This means that our model takes into account 98% percent of the variance in `r y1name`. This means that our model is pretty accurate in predicting `r y1name`. This means that when we take into account `r x1name` and `r x2name`, these two indicators combined are very good predictors for `r y1name`. 
+
+# Part 3: The Joe Question {-}
+Our next problem involves a scenario about a 40 year old man named Joe. Joe smokes, drinks, lives in a urban area, and does not exercise. As such he is at risk for `r DataName`. We want to figure out which variable can we change to reduce `r y1name`. To do this we can create a linear regression model of these variables. 
+```{r}
+Joe <- lm(y1 ~ x2+x3+x4+x5+x6, data = Dataset)
+summary(Joe)
+```
+Let's visualize this: 
+```{r tmpSecLabl3, fig.cap="Right: Barplot of Linear Regression Coefficients of each factor for Low Physical Activity, Alchol Consumption, Smoking, Urban living, and Age, Right: Boxplot of Alcohol Consumption vs Tumor Size"}
+par(mfrow=c(1,2))
+coefficients <- coef(Joe)
+coefficients <- coefficients[names(coefficients) != "(Intercept)"]
+coefficients <- coefficients[names(coefficients) != "x2Moderate"]
+barplot(coefficients, main = "Linear Regression Coefficients", ylab= "Coefficient Estimate", las=2, ylim=c(min(coefficients), max(coefficients)), col="purple", names=c("PA-Low", "Alcohol", "Smoking", "Urban", "Age"))
+plot(x3,y1,pch=5, xlab="Alcohol Consumption", ylab="Tumor Size(mm)", main="Tumor Size vs Age", col="orange")
+```
+
+Our model shows that `r x3name` has the slightly has the largest impact on `r y1name`. We found this by looking at the coefficients of the linear regression model. This means that if Joe wants to change exactly one factor to reduce his `r y1name`, he should give up `r x3name`.This is backed up by our bar plot, which shows a peak at `r x3name`. That being said, `r x4name` and `r x5name` do still have a significant impact on `r y1name`. The coefficients are slightly lower than `r x3name`, so in reality he should those into account. However the single biggest factor would be `r x3name`. We can also see that our bar plot shows that the median `r y1name` is higher when `r x3name` is yes, and with outliers skewing the data, that could be even a larger gap. In conclusion, Joe should quit `r x3name` if he has the choice to change one habit. 
